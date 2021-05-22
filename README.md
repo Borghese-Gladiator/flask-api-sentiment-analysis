@@ -1,0 +1,2 @@
+# Flask REST API for Senttiment Analysis
+Created naive bayes sentiment analysis classifier with SKLearn - referenced [https://towardsdatascience.com/sentiment-analysis-of-tweets-using-multinomial-naive-bayes-1009ed24276b](https://towardsdatascience.com/sentiment-analysis-of-tweets-using-multinomial-naive-bayes-1009ed24276b)
