@@ -1,6 +1,9 @@
 # Flask REST API for Senttiment Analysis
 REST API to expose my Multinomial Naive Bayes sentiment analysis classifier written with NLTK
 
+- / - returns default description
+- /api/predict - POST method to return "Positive" or "Negative" based on given sentence 
+
 ## Methodology
 - Created naive bayes sentiment analysis classifier with NLTK
 - The NLTK Naive Bayes is of the Multinomial variety (typical with classification) as opposed to SKLearn which uses the Gaussian Naive Bayes typically used with continuous data - [https://stackoverflow.com/questions/55154381/difference-between-nltk-and-scikit-naive-bayes](https://stackoverflow.com/questions/55154381/difference-between-nltk-and-scikit-naive-bayes)
