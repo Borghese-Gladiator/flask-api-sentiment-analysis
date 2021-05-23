@@ -12,12 +12,14 @@ nltk.download('wordnet')                        # normalize - WordNet Lemmatizer
 nltk.download('averaged_perceptron_tagger')     # implement part-of-speech tagging - pos_tag function
 # load twitter_samples data
 from nltk.corpus import twitter_samples, stopwords
-from nltk.stem.wordnet import WordNetLemmatizer
-from nltk.tag import pos_tag
 from nltk.tokenize import word_tokenize
-from nltk import FreqDist, classify, NaiveBayesClassifier
-import re, string, random
+from nltk import classify, NaiveBayesClassifier
+import random
+# write pickle to file
+import os
 import pickle
+# custom text preprocessing utils
+from utils import remove_noise 
 
 def get_all_words(cleaned_tokens_list):
     for tokens in cleaned_tokens_list:
@@ -41,25 +43,6 @@ negative_tweet_tokens = twitter_samples.tokenized('negative_tweets.json')
 
 ## NORMALIZATION - lemmatize verbs && remove noise from data
 stop_words = stopwords.words('english')
-def remove_noise(tweet_tokens, stop_words = ()):
-    cleaned_tokens = []
-    for token, tag in pos_tag(tweet_tokens):
-        token = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+#]|[!*\(\),]|'\
-                       '(?:%[0-9a-fA-F][0-9a-fA-F]))+','', token)
-        token = re.sub("(@[A-Za-z0-9_]+)","", token)
-        if tag.startswith("NN"):
-            pos = 'n'
-        elif tag.startswith('VB'):
-            pos = 'v'
-        else:
-            pos = 'a'
-
-        lemmatizer = WordNetLemmatizer()
-        token = lemmatizer.lemmatize(token, pos)
-
-        if len(token) > 0 and token not in string.punctuation and token.lower() not in stop_words:
-            cleaned_tokens.append(token.lower())
-    return cleaned_tokens
 
 positive_cleaned_tokens_list = []
 negative_cleaned_tokens_list = []
@@ -98,5 +81,6 @@ custom_tokens = remove_noise(word_tokenize(custom_tweet))
 
 print(custom_tweet, classifier.classify(dict([token, True] for token in custom_tokens)))
 
-with open('classifier.pickle', 'wb') as f:
-    pickle.dump(classifier, f)
+
+## SAVE MODEL
+pickle.dump(classifier, open(os.path.join('lib', 'models', 'classifier.pkl'),'wb+'))
