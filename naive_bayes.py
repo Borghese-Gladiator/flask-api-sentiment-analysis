@@ -1,49 +1,102 @@
-# Multinomial Naive Bayes - baseline solution for sentiment analysis task
-## find probabilities of classes assigned to texts by using joint probabilites of words and classes
+# NAIVE BAYES CLASSIFIER
+## Preprocess text (load, tokenize, normalize - remove noise/lemmatize)
+## Train naive bayes on processed text
 
-## LOAD DATA
-import pandas as pd
-import numpy as np
-# Read the data from CSV files
-n = ['id', 'date','name','text','typr','rep','rtw','faw','stcount','foll','frien','listcount']
-data_positive = pd.read_csv('positive.csv', sep=';',error_bad_lines=False, names=n, usecols=['text'])
-data_negative = pd.read_csv('negative.csv', sep=';',error_bad_lines=False, names=n, usecols=['text'])
-# Create balanced dataset
-sample_size = min(data_positive.shape[0], data_negative.shape[0])
-raw_data = np.concatenate((data_positive['text'].values[:sample_size], 
-                           data_negative['text'].values[:sample_size]), axis=0) 
-labels = [1]*sample_size + [0]*sample_size
+# NLTK - nlp library
+import nltk
+# download data
+nltk.download('twitter_samples')                # load data
+nltk.download('punkt')                          # tokenization
+nltk.download('stopwords')                      # normalize - removing noise
+nltk.download('wordnet')                        # normalize - WordNet Lemmatizer
+nltk.download('averaged_perceptron_tagger')     # implement part-of-speech tagging - pos_tag function
+# load twitter_samples data
+from nltk.corpus import twitter_samples, stopwords
+from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.tag import pos_tag
+from nltk.tokenize import word_tokenize
+from nltk import FreqDist, classify, NaiveBayesClassifier
+import re, string, random
+import pickle
 
-## PREPROCESS
-import re
-def preprocess_text(text):
-    text = re.sub('((www\.[^\s]+)|(https?://[^\s]+))','URL', text)
-    text = re.sub('@[^\s]+','USER', text)
-    text = text.lower().replace("ё", "е")
-    text = re.sub('[^a-zA-Zа-яА-Я1-9]+', ' ', text)
-    text = re.sub(' +',' ', text)
-    return text.strip()
-data = [preprocess_text(t) for t in raw_data]
+def get_all_words(cleaned_tokens_list):
+    for tokens in cleaned_tokens_list:
+        for token in tokens:
+            yield token
+
+def get_tweets_for_model(cleaned_tokens_list):
+    for tweet_tokens in cleaned_tokens_list:
+        yield dict([token, True] for token in tweet_tokens)
+
+## LOADING DATA
+positive_tweets = twitter_samples.strings('positive_tweets.json')
+negative_tweets = twitter_samples.strings('negative_tweets.json')
+
+text = twitter_samples.strings('tweets.20150430-223406.json')
+tweet_tokens = twitter_samples.tokenized('positive_tweets.json')[0]
+
+## TOKENIZATION - split phrases into words using punkt tokenization
+positive_tweet_tokens = twitter_samples.tokenized('positive_tweets.json')
+negative_tweet_tokens = twitter_samples.tokenized('negative_tweets.json')
+
+## NORMALIZATION - lemmatize verbs && remove noise from data
+stop_words = stopwords.words('english')
+def remove_noise(tweet_tokens, stop_words = ()):
+    cleaned_tokens = []
+    for token, tag in pos_tag(tweet_tokens):
+        token = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+#]|[!*\(\),]|'\
+                       '(?:%[0-9a-fA-F][0-9a-fA-F]))+','', token)
+        token = re.sub("(@[A-Za-z0-9_]+)","", token)
+        if tag.startswith("NN"):
+            pos = 'n'
+        elif tag.startswith('VB'):
+            pos = 'v'
+        else:
+            pos = 'a'
+
+        lemmatizer = WordNetLemmatizer()
+        token = lemmatizer.lemmatize(token, pos)
+
+        if len(token) > 0 and token not in string.punctuation and token.lower() not in stop_words:
+            cleaned_tokens.append(token.lower())
+    return cleaned_tokens
+
+positive_cleaned_tokens_list = []
+negative_cleaned_tokens_list = []
+
+for tokens in positive_tweet_tokens:
+    positive_cleaned_tokens_list.append(remove_noise(tokens, stop_words))
+
+for tokens in negative_tweet_tokens:
+    negative_cleaned_tokens_list.append(remove_noise(tokens, stop_words))
+
+positive_tokens_for_model = get_tweets_for_model(positive_cleaned_tokens_list)
+negative_tokens_for_model = get_tweets_for_model(negative_cleaned_tokens_list)
+
+positive_dataset = [(tweet_dict, "Positive")
+                        for tweet_dict in positive_tokens_for_model]
+
+negative_dataset = [(tweet_dict, "Negative")
+                        for tweet_dict in negative_tokens_for_model]
 
 ## TRAINING
-from sklearn.pipeline import Pipeline
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-from sklearn.model_selection import train_test_split, GridSearchCV
-text_clf = Pipeline([('vect', CountVectorizer()),
-                     ('tfidf', TfidfTransformer()),
-                     ('clf', MultinomialNB())])
-tuned_parameters = {
-    'vect__ngram_range': [(1, 1), (1, 2), (2, 2)],
-    'tfidf__use_idf': (True, False),
-    'tfidf__norm': ('l1', 'l2'),
-    'clf__alpha': [1, 1e-1, 1e-2]
-}
+dataset = positive_dataset + negative_dataset
+random.shuffle(dataset)
 
-x_train, x_test, y_train, y_test = train_test_split(data, labels, test_size=0.33, random_state=42)
+X = dataset[:7000] # train_data
+y = dataset[7000:] # test_data
 
-from sklearn.metrics import classification_report
-clf = GridSearchCV(text_clf, tuned_parameters, cv=10, scoring=score)
-clf.fit(x_train, y_train)
+classifier = NaiveBayesClassifier.train(X)
+print("Accuracy is:", classify.accuracy(classifier, y))
 
-print(classification_report(y_test, clf.predict(x_test), digits=4))
+## CLASSIFICATION
+print(classifier.show_most_informative_features(10))
+
+custom_tweet = "I ordered just once from TerribleCo, they screwed up, never used the app again."
+
+custom_tokens = remove_noise(word_tokenize(custom_tweet))
+
+print(custom_tweet, classifier.classify(dict([token, True] for token in custom_tokens)))
+
+with open('classifier.pickle', 'wb') as f:
+    pickle.dump(classifier, f)
