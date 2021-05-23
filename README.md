@@ -1,6 +1,7 @@
 # Flask REST API for Senttiment Analysis
 REST API to expose my Multinomial Naive Bayes sentiment analysis classifier written with NLTK
 
+- see it live here: [https://flask-api-sentiment-analysis.herokuapp.com/](https://flask-api-sentiment-analysis.herokuapp.com/)
 - / - returns default description
 - /api/predict - POST method to return "Positive" or "Negative" based on given sentence 
 
